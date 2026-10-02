@@ -48,12 +48,17 @@ limit) are not retried pointlessly.
 
 ## Install from source
 
-Requires OpenCode V2 (the `retry` session hook). Verified on 2.0.19.
+Requires OpenCode V2 (the `retry` session hook). Verified on 2.0.19 and 2.0.21.
 
 ```sh
 git clone https://github.com/SamSpiri/opencode-go-stub-400-retry.git
-mkdir -p ~/.config/opencode/plugins
-cp opencode-go-stub-400-retry/opencode-go-stub-retry.ts ~/.config/opencode/plugins/
+./opencode-go-stub-400-retry/install.sh
+```
+
+Or on a machine without a checkout:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/SamSpiri/opencode-go-stub-400-retry/main/install.sh | sh
 ```
 
 Nothing to install, no dependencies. OpenCode discovers `.ts` files in the global
