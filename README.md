@@ -80,9 +80,36 @@ opencode api get /api/plugin | jq '.data[] | select(.id=="opencode-go.stub-400-r
 # { "state": { "status": "active" }, ... }
 ```
 
-A forced retry shows up in the session UI as a retry countdown. Inducing the stub
-on demand is not possible, so expect it to trigger whenever the gateway next
-misbehaves.
+A forced retry shows up in the session UI as a retry countdown.
+
+### End-to-end test
+
+The stub cannot be induced on the real gateway, so point a throwaway project at a
+local server that answers 400 with `{"model":"deepseek-v4.1-flash"}` for the
+first N requests and a normal completion afterwards, then run one prompt. The
+result on OpenCode 2.0.19, failing the first three requests:
+
+| Plugin | Requests seen | Turn |
+| --- | --- | --- |
+| disabled | 3, all 400, within the same second | fails: `Provider request failed with HTTP 400` |
+| enabled | 4 — the three, then one 9.1 s later returning 200 | completes: `ok` |
+
+Without the plugin the turn dies exactly as reported. With it, the retry carries
+the turn through.
+
+## The delivered message shape
+
+Worth knowing if you write a similar matcher: the message is not stable across
+versions. On 2.0.19 a bodyless 400 persisted as the bare
+`Provider request failed with HTTP 400`; a 2.0.21 node produced
+
+```
+Provider request failed with HTTP 400: {"model":"deepseek-v4.1-flash"}
+```
+
+with the raw body appended, plus an `error.response.body` holding the stub. A
+matcher anchored with `$` on the first form silently never fires on the second.
+This plugin strips the prefix and inspects whatever follows.
 
 ## Tune or disable
 
@@ -118,10 +145,9 @@ Delete the file (or remove the `plugins` entry) to disable.
 - The message is the client fallback, not the gateway's: OpenCode 2.0.19 bundle,
   `hm()` in the provider error path
 
-The predicate was checked against the shapes an empty-body 400 can take, and
-against real persisted records (`provider.invalid-request`,
-`Provider request failed with HTTP 400`, status 400). It has not been observed
-firing on a live stub, because that cannot be induced.
+Verified end-to-end against a mock gateway (see above), and against real
+persisted records: `provider.invalid-request`, status 400, with the message in
+both the bare and body-appending forms.
 
 [#51201]: https://github.com/anomalyco/opencode/issues/51201
 [#51434]: https://github.com/anomalyco/opencode/issues/51434

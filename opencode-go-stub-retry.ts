@@ -18,11 +18,29 @@
 // Extra attempts, one delay each. Attempt 1 is the original request.
 const DELAYS = [3000, 9000]
 
-// No upstream reason: the client fallback text, or the bare AI SDK phrasing,
-// or the raw stub body itself. A structured 400 always carries a real message.
-const opaque = (message) =>
-  /^(provider request failed with http 400|bad request)$/i.test(message.trim()) ||
-  /^\{"model":\s*"[^"]*"\}$/.test(message.trim())
+// How the client decorates a bodyless rejection. The client appends the parsed
+// body (or an upstream code) after the status in some versions, and nothing in
+// others, so the prefix is stripped and whatever remains decides.
+const PREFIX = /^(?:provider request failed with http \d+|bad request)\b[:\s]*/i
+
+// The stub is a JSON object whose only key is the echoed model id.
+const bareModelEcho = (value) =>
+  typeof value === "object" &&
+  value !== null &&
+  !Array.isArray(value) &&
+  Object.keys(value).length === 1 &&
+  typeof value.model === "string"
+
+const opaque = (message) => {
+  const text = message.trim()
+  const detail = PREFIX.test(text) ? text.replace(PREFIX, "").trim() : text
+  if (detail === "") return true
+  try {
+    return bareModelEcho(JSON.parse(detail))
+  } catch {
+    return false
+  }
+}
 
 export default {
   id: "opencode-go.stub-400-retry",
